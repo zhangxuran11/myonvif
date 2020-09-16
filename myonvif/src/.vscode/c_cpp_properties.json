@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/gsoap",
-                "${workspaceFolder}/gsoap/include"
+                "${workspaceFolder}/gsoap/include",
+                "${workspaceFolder}/gsoap/share/gsoap/plugin/"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

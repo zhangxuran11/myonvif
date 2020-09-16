@@ -4,6 +4,7 @@
 #include "soapH.h"
 #include "wsaapi.h"
 #include "wsddapi.h"
+#include "wsseapi.h"
 #include "wsdd.nsmap"
 //#include "onvif_dump.h"
 
@@ -182,13 +183,15 @@ static void cb(char *DeviceXAddr){
     printf("%s\n",DeviceXAddr);
 
 }
+#define USERNAME    "admin"
+#define PASSWORD    "hidoo123"
 
 static void ONVIF_PTZ()
 {
     struct soap soap;
 	soap_init(&soap);
 			
-    char * ip;
+    const char * ip;
     char Mediaddr[256]="";
     char profile[256]="";
     float pan = 1;
@@ -206,21 +209,17 @@ static void ONVIF_PTZ()
 	       	
     //req.Category = (enum tt__CapabilityCategory *)soap_malloc(&soap, sizeof(int));
     //req.__sizeCategory = 1;
-    *(req.Category) = (enum tt__CapabilityCategory)0;
+    //*(req.Category) = (enum tt__CapabilityCategory)0;
+    req.Category.resize(1);
+    req.Category[0] = tt__CapabilityCategory__All;
        
     //第一步：获取capability
     char endpoint[255];
     memset(endpoint, '\0', 255);
-    if (argc > 1)
-    {
-        ip = argv[1];
-    }
-    else
-    {
-        ip = "192.168.170.248"; 
-    }
+    
+    ip = "192.168.10.66"; 
     sprintf(endpoint, "http://%s/onvif/device_service", ip);    
-    soap_call___tds__GetCapabilities(&soap, endpoint, NULL, &req, &rep);
+    soap_call___tds__GetCapabilities(&soap, endpoint, NULL, &req, rep);
     if (soap.error)  
     {  
         printf("[%s][%d]--->>> soap result: %d, %s, %s\n", __func__, __LINE__, 
@@ -231,9 +230,9 @@ static void ONVIF_PTZ()
 	{
         printf("get capability success\n");
         //printf("Dev_XAddr====%s\n",rep.Capabilities->Device->XAddr);
-        printf("Med_XAddr====%s\n",rep.Capabilities->Media->XAddr);
+        printf("Med_XAddr====%s\n",rep.Capabilities->Media->XAddr.c_str());
         //printf("PTZ_XAddr====%s\n",rep.Capabilities->PTZ->XAddr);
-        strcpy(Mediaddr,rep.Capabilities->Media->XAddr);
+        strcpy(Mediaddr,rep.Capabilities->Media->XAddr.c_str());
     }	
     printf("\n");
 	
@@ -242,9 +241,9 @@ static void ONVIF_PTZ()
     soap_wsse_add_UsernameTokenDigest(&soap, NULL, USERNAME, PASSWORD);
 	
     //获取profile
-    if(soap_call___trt__GetProfiles(&soap,Mediaddr,NULL,&getProfiles,&response)==SOAP_OK)
+    if(soap_call___trt__GetProfiles(&soap,Mediaddr,NULL,&getProfiles,response)==SOAP_OK)
     {
-        strcpy(profile, response.Profiles[0].token);
+        strcpy(profile, response.Profiles[0]->token.c_str());
         printf("get profile succeed \n");		
 	    printf("profile====%s\n",profile);	
     }
@@ -283,8 +282,19 @@ static void ONVIF_PTZ()
     
     //第四步：执行绝对位置控制指令，需要再次鉴权
     soap_wsse_add_UsernameTokenDigest(&soap, NULL, USERNAME, PASSWORD);
-    soap_call___tptz__AbsoluteMove(&soap, PTZendpoint, NULL, &absoluteMove, 
-	                                        &absoluteMoveResponse);			 
+    if(soap_call___tptz__AbsoluteMove(&soap, PTZendpoint, NULL, &absoluteMove, 
+	                                        absoluteMoveResponse)==SOAP_OK)	
+    {
+        printf("get tptz__AbsoluteMove succeed \n");		
+	    //printf("profile====%s\n",profile);	
+    }
+    else
+    {
+        printf("get tptz__AbsoluteMove failed \n");
+	    printf("[%s][%d]--->>> soap result: %d, %s, %s\n", __func__, __LINE__, 
+	                                        soap.error, *soap_faultcode(&soap), 
+	                                        *soap_faultstring(&soap));  
+    }		 
     //第五步：清除结构体
     soap_destroy(&soap); // clean up class instances
     soap_end(&soap); // clean up everything and close socket, // userid and passwd were deallocated
@@ -296,7 +306,8 @@ static void ONVIF_PTZ()
 
 int main(int argc, char **argv)
 {
-    ONVIF_DetectDevice(cb);
+    //ONVIF_DetectDevice(cb);
+    ONVIF_PTZ();
 
     return 0;
 }

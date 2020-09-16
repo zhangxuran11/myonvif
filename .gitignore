@@ -1,2 +1,4 @@
+*.o
+*.ox
 downloads/gsoap_2.8.106.zip
 gsoap-2.8/
