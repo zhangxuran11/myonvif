@@ -258,12 +258,14 @@ class OnvifSoap{
             if (SOAP_OK == soap_call___tptz__Stop(&mSoap,ptzXAddr,NULL,&stop,stopResponse)){
                 //停止成功
                 printf("soap_call___tptz__Stop succeed \n");		
+                return 0;
             }
             else{
                 printf("oap_call___tptz__Stop failed \n");
                 printf("[%s][%d]--->>> soap result: %d, %s, %s\n", __func__, __LINE__, 
                                                     mSoap.error, *soap_faultcode(&mSoap), 
                                                     *soap_faultstring(&mSoap));  
+                return -1;
             }
                 
         }

@@ -11,22 +11,25 @@
 #define PASSWORD    "hidoo123"
 static void cb(char *DeviceXAddr){
     printf("%s\n",DeviceXAddr);
-
 }
-
-int main(int argc, char **argv)
+void testProcesser(const boost::property_tree::ptree& pt){
+    std::stringstream ss;
+    boost::property_tree::write_json(ss, pt);
+    std::cout<<ss.str()<<std::endl;
+}
+int main()
 {
-    boost::asio::io_context io_context;
+    OnvifSoap soap(SOAP_SOCK_TIMEOUT);
 
-    server s(io_context, std::atoi(argv[1]));
+    boost::asio::io_context io_context;
+    EchoServer s(io_context, 10250);
+    s.registerProcesser("test",testProcesser);
 
     io_context.run();
 
-    OnvifSoap soap(SOAP_SOCK_TIMEOUT);
+
     const char* ip = "192.168.10.66";
     soap.detectDevice(cb);
-    //soap.absoluteMove(ip,USERNAME,PASSWORD);
     soap.continuousMove(ip,USERNAME,PASSWORD);
-    //ONVIF_PTZ_ContinuousMove(&soap,ip,profiles.c_str(),ptzXAddr.c_str());
     return 0;
 }
