@@ -9,6 +9,8 @@
 #include <boost/foreach.hpp>
 
 #include <boost/asio.hpp>
+#include <boost/asio/impl/use_future.hpp>
+#include <boost/asio/system_executor.hpp>
 
 class EchoServer{
     boost::asio::ip::udp::socket mSocket;

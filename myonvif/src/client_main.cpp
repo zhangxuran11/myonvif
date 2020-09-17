@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 #include "EchoClient.h"
-
+#include <iostream>
 
 int main()
 {
@@ -14,7 +14,8 @@ int main()
     pt.put("cmd", "test");
     pt.put("action", "this is a etst");
     c.sendResqust(pt);
+    std::cout<<"__cplusplus="<<__cplusplus<<",ATOMIC_INT_LOCK_FREE="<<ATOMIC_INT_LOCK_FREE<<std::endl;
 
-    io_context.run();
+    //io_context.run();
     return 0;
 }
