@@ -11,13 +11,18 @@
 #include <boost/asio.hpp>
 #include <boost/asio/impl/use_future.hpp>
 #include <boost/asio/system_executor.hpp>
+#include <boost/exception/all.hpp>
+
+
+#include <iostream>
+#include <memory>
+#include <functional>
 
 class EchoServer{
     boost::asio::ip::udp::socket mSocket;
     boost::asio::ip::udp::endpoint mSenderEndpoint;
     std::vector<char> mRecvBuffer;
-    typedef void (*Processer)(const boost::property_tree::ptree&);
-    std::map<std::string,Processer> mProcesserSet;
+    std::map<std::string,std::function<void(const boost::property_tree::ptree&)> > mProcesserSet;
     void doReceive()
      {
        mSocket.async_receive_from(
@@ -29,9 +34,14 @@ class EchoServer{
                  boost::property_tree::ptree pt;
                  std::stringstream sstream(mRecvBuffer.data());
                  boost::property_tree::json_parser::read_json(sstream, pt);
-                 std::string cmd = pt.get<std::string>("cmd");
-                 if(mProcesserSet.count(cmd) > 0){
-                     mProcesserSet[cmd](pt);
+                 try{
+                     std::string cmd = pt.get<std::string>("topic");
+                     if(mProcesserSet.count(cmd) > 0){
+                         mProcesserSet[cmd](pt);
+                     }
+                 }
+                 catch (boost::exception& e){
+                     std::cout<<boost::diagnostic_information(e)<<std::endl;
                  }
              }
              doReceive();
@@ -48,12 +58,14 @@ class EchoServer{
 
 //           });
 //     }
+
 public:
     EchoServer(boost::asio::io_context& io_context ,uint16_t port):mSocket(io_context, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), port)),mRecvBuffer(0x10000){
         doReceive();
     }
-    void registerProcesser(const std::string& cmd,Processer pfn){
-        mProcesserSet[cmd] = pfn;
+    void registerProcesser(const std::string& cmd,std::function<void(const boost::property_tree::ptree&)> processer){
+
+        mProcesserSet[cmd] = processer;
 
     }
 };

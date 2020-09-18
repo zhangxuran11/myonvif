@@ -1,3 +1,4 @@
+CONFIG += c++11
 QMAKE_CXXFLAGS += -std=c++11 -Iinc/ -I/opt/project/boost_1_74_0/ -Igsoap/include/ -Igsoap/share/gsoap/plugin/ -Igsoap/ -Wall -g -DWITH_OPENSSL -DBOOST_BIND_GLOBAL_PLACEHOLDERS
 INCLUDEPATH += /opt/project/boost_1_74_0 \
     gsoap \

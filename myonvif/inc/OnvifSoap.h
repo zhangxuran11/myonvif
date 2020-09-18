@@ -169,21 +169,9 @@ class OnvifSoap{
 
             return 0;
         }
-        int _continuousMove(const char* profile,const char* ptzXAddr,const char*userName,const char*pwd)
-        {
-            #define LEFT 0
-            #define RIGHT (LEFT+1)
-            #define UP     (RIGHT+1)
-            #define DOWN     (UP+1)
-            #define ZOOMIN     (DOWN+1)
-            #define ZOOMOUT     (ZOOMIN+1)
-            float pan = 1;
-            float panSpeed = 1;
-            float tilt = 1;
-            float tiltSpeed = 0.5;
-            float zoom = 0;
-            float zoomSpeed = 0.5;
-            
+        //opt   0:up    1:down  2:left  3:right 4:room out  5:room in   6:stop
+        int _continuousMove(const char* profile,const char* ptzXAddr,const char*userName,const char*pwd,int opt)
+        {   
             struct _tptz__ContinuousMove           continuousMove;
             struct _tptz__ContinuousMoveResponse   continuousMoveResponse;
             //第三步：PTZ结构体填充      
@@ -194,9 +182,16 @@ class OnvifSoap{
             continuousMove.Velocity->PanTilt = soap_new_tt__Vector2D(&mSoap, -1);
             continuousMove.Velocity->PanTilt->space = new std::string("http://www.onvif.org/ver10/tptz/PanTiltSpaces/VelocityGenericSpace");
             continuousMove.Velocity->Zoom = soap_new_tt__Vector1D(&mSoap, -1);
-            int command = LEFT;
             float speed = 10;
-            switch (command)
+
+            #define UP 0
+            #define DOWN (UP+1)
+            #define LEFT     (DOWN+1)
+            #define RIGHT     (LEFT+1)
+            #define ZOOMOUT     (RIGHT+1)
+            #define ZOOMIN     (ZOOMOUT+1)
+
+            switch (opt)
             {
             case LEFT:
                 continuousMove.Velocity->PanTilt->x = -((float)speed / 10);
@@ -234,8 +229,7 @@ class OnvifSoap{
                 printf("get tptz__ContinuousMove failed \n");
                 printf("[%s][%d]--->>> soap result: %d, %s, %s\n", __func__, __LINE__, 
                                                     mSoap.error, *soap_faultcode(&mSoap), 
-                                                    *soap_faultstring(&mSoap));  
-
+                                                    *soap_faultstring(&mSoap));
             }		 
 
             return 0;
@@ -244,8 +238,8 @@ class OnvifSoap{
         {
             _tptz__Stop stop;
             _tptz__StopResponse stopResponse;
-            memset(&stop,0,sizeof(_tptz__Stop));
-            memset(&stopResponse,0,sizeof(_tptz__StopResponse));
+            //memset(&stop,0,sizeof(_tptz__Stop));
+            //memset(&stopResponse,0,sizeof(_tptz__StopResponse));
             stop.ProfileToken = profile;
 
             bool* pantilt = new bool;
@@ -255,6 +249,7 @@ class OnvifSoap{
             stop.Zoom = zoom;
             *(stop.Zoom) = true;
 
+            soap_wsse_add_UsernameTokenDigest(&mSoap, NULL, userName, pwd);
             if (SOAP_OK == soap_call___tptz__Stop(&mSoap,ptzXAddr,NULL,&stop,stopResponse)){
                 //停止成功
                 printf("soap_call___tptz__Stop succeed \n");		
@@ -351,12 +346,21 @@ class OnvifSoap{
             _getProfiles(mediaXAddr.c_str(),profile,userName,pwd);
             return _absoluteMove(profile.c_str(),ptzXAddr.c_str(),userName,pwd);
         }
-        int continuousMove(const char* ip,const char*userName,const char*pwd)
+
+        int continuousMove(const char* ip,const char*userName,const char*pwd,int opt)
         {
             std::string profile,mediaXAddr,ptzXAddr;
-            _getAddr(ip,mediaXAddr,ptzXAddr);
-            _getProfiles(mediaXAddr.c_str(),profile,userName,pwd);
-            return _continuousMove(profile.c_str(),ptzXAddr.c_str(),userName,pwd);
+            int ret = _getAddr(ip,mediaXAddr,ptzXAddr);
+            if( ret != 0)
+                return ret;
+            ret = _getProfiles(mediaXAddr.c_str(),profile,userName,pwd);
+            if(ret != 0 )
+                return ret;
+            if(opt == 6)
+                return _stopMove(profile.c_str(),ptzXAddr.c_str(),userName,pwd);
+            else
+                return _continuousMove(profile.c_str(),ptzXAddr.c_str(),userName,pwd,opt);
+
         }
         
 };

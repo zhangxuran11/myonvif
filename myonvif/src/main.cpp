@@ -9,13 +9,19 @@
 
 #define USERNAME    "admin"
 #define PASSWORD    "hidoo123"
-static void cb(char *DeviceXAddr){
-    printf("%s\n",DeviceXAddr);
-}
-void testProcesser(const boost::property_tree::ptree& pt){
+
+void ptzCrtlProcesser(OnvifSoap* soap, const boost::property_tree::ptree& pt){
     std::stringstream ss;
     boost::property_tree::write_json(ss, pt);
     std::cout<<ss.str()<<std::endl;
+
+    std::string ip = pt.get<std::string>("ip");
+    std::string userName = pt.get<std::string>("userName");
+    std::string pwd = pt.get<std::string>("pwd");
+
+    int controlType = pt.get<int>("controlType");
+    soap->continuousMove(ip.c_str(),userName.c_str(),pwd.c_str(),controlType);
+
 }
 int main()
 {
@@ -23,13 +29,9 @@ int main()
 
     boost::asio::io_context io_context;
     EchoServer s(io_context, 10250);
-    s.registerProcesser("test",testProcesser);
+    s.registerProcesser("ptz-crtl",std::bind(ptzCrtlProcesser,&soap,std::placeholders::_1));
 
     io_context.run();
 
-
-    const char* ip = "192.168.10.66";
-    soap.detectDevice(cb);
-    soap.continuousMove(ip,USERNAME,PASSWORD);
     return 0;
 }
