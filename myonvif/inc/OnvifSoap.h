@@ -6,6 +6,7 @@
 #include "wsddapi.h"
 #include "wsseapi.h"
 #include "wsdd.nsmap"
+#include <map>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -165,8 +166,7 @@ class OnvifSoap{
                 printf("[%s][%d]--->>> soap result: %d, %s, %s\n", __func__, __LINE__, 
                                                     mSoap.error, *soap_faultcode(&mSoap), 
                                                     *soap_faultstring(&mSoap));  
-            }		 
-
+            }
             return 0;
         }
         //opt   0:up    1:down  2:left  3:right 4:room out  5:room in   6:stop
@@ -188,8 +188,8 @@ class OnvifSoap{
             #define DOWN (UP+1)
             #define LEFT     (DOWN+1)
             #define RIGHT     (LEFT+1)
-            #define ZOOMOUT     (RIGHT+1)
-            #define ZOOMIN     (ZOOMOUT+1)
+            #define ZOOMIN     (RIGHT+1)
+            #define ZOOMOUT     (ZOOMIN+1)
 
             switch (opt)
             {
@@ -209,10 +209,10 @@ class OnvifSoap{
                 continuousMove.Velocity->PanTilt->x = 0;
                 continuousMove.Velocity->PanTilt->y = -((float)speed / 10);
                 break;
-            case ZOOMIN:
+            case ZOOMOUT:
                 continuousMove.Velocity->Zoom->x = ((float)speed / 10);
                 break;
-            case ZOOMOUT:
+            case ZOOMIN:
                 continuousMove.Velocity->Zoom->x = -((float)speed / 10);
                 break;
             default:
@@ -220,19 +220,19 @@ class OnvifSoap{
             }
             //第四步：执行绝对位置控制指令，需要再次鉴权
             soap_wsse_add_UsernameTokenDigest(&mSoap, NULL, userName, pwd);
+            std::cout<<"soap_wsse_add_UsernameTokenDigest"<<std::endl;
             if (soap_call___tptz__ContinuousMove(&mSoap,ptzXAddr,NULL,&continuousMove,continuousMoveResponse) == SOAP_OK){
                 //转动成功
-                printf("get tptz__ContinuousMove succeed \n");		
-
+                printf("get tptz__ContinuousMove succeed \n");
+                return 0;
             }
             else{
                 printf("get tptz__ContinuousMove failed \n");
                 printf("[%s][%d]--->>> soap result: %d, %s, %s\n", __func__, __LINE__, 
                                                     mSoap.error, *soap_faultcode(&mSoap), 
                                                     *soap_faultstring(&mSoap));
-            }		 
-
-            return 0;
+                return -1;
+            }
         }
         int _stopMove(const char* profile,const char* ptzXAddr,const char*userName,const char*pwd)
         {
@@ -264,6 +264,9 @@ class OnvifSoap{
             }
                 
         }
+        std::map<std::string,std::string> mMediaXAddrs;
+        std::map<std::string,std::string> mPtzXAddrs;
+        std::map<std::string,std::string> mProfiles;
     public:
         OnvifSoap(int timeout){
             soap_init(&mSoap);
@@ -350,17 +353,40 @@ class OnvifSoap{
         int continuousMove(const char* ip,const char*userName,const char*pwd,int opt)
         {
             std::string profile,mediaXAddr,ptzXAddr;
-            int ret = _getAddr(ip,mediaXAddr,ptzXAddr);
-            if( ret != 0)
-                return ret;
-            ret = _getProfiles(mediaXAddr.c_str(),profile,userName,pwd);
-            if(ret != 0 )
-                return ret;
-            if(opt == 6)
-                return _stopMove(profile.c_str(),ptzXAddr.c_str(),userName,pwd);
+            int ret =  0;
+            if(mMediaXAddrs.count(ip) == 0 || mPtzXAddrs.count(ip) == 0){
+                ret = _getAddr(ip,mediaXAddr,ptzXAddr);
+                if( ret != 0)
+                    return ret;
+                mMediaXAddrs[ip] = mediaXAddr;
+                mPtzXAddrs[ip] = ptzXAddr;
+            }
             else
-                return _continuousMove(profile.c_str(),ptzXAddr.c_str(),userName,pwd,opt);
+            {
+                mediaXAddr = mMediaXAddrs[ip];
+                ptzXAddr = mPtzXAddrs[ip];
 
+            }
+            if(mProfiles.count(ip) == 0){
+                ret = _getProfiles(mediaXAddr.c_str(),profile,userName,pwd);
+                if(ret != 0 )
+                    return ret;
+                mProfiles[ip] = profile;
+            }
+            else{
+                profile = mProfiles[ip];
+            }
+            if(opt == 6)
+                ret = _stopMove(profile.c_str(),ptzXAddr.c_str(),userName,pwd);
+            else
+                ret = _continuousMove(profile.c_str(),ptzXAddr.c_str(),userName,pwd,opt);
+            if(ret != 0)
+            {
+                mMediaXAddrs.erase(ip);
+                mPtzXAddrs.erase(ip);
+                mProfiles.erase(ip);
+            }
+            return ret;
         }
         
 };

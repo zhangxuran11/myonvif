@@ -13,7 +13,7 @@
 #include <boost/asio/system_executor.hpp>
 #include <boost/exception/all.hpp>
 
-
+#include <string>
 #include <iostream>
 #include <memory>
 #include <functional>
@@ -22,6 +22,7 @@ class EchoServer{
     boost::asio::ip::udp::socket mSocket;
     boost::asio::ip::udp::endpoint mSenderEndpoint;
     std::vector<char> mRecvBuffer;
+    std::vector<char> mSendBuffer;
     std::map<std::string,std::function<void(const boost::property_tree::ptree&)> > mProcesserSet;
     void doReceive()
      {
@@ -32,6 +33,7 @@ class EchoServer{
              if (!ec && bytes_recvd > 0)
              {
                  boost::property_tree::ptree pt;
+                 mRecvBuffer[bytes_recvd] = '\0';
                  std::stringstream sstream(mRecvBuffer.data());
                  boost::property_tree::json_parser::read_json(sstream, pt);
                  try{
@@ -67,6 +69,22 @@ public:
 
         mProcesserSet[cmd] = processer;
 
+    }
+    void sendResponse(const boost::property_tree::ptree& pt){
+        std::stringstream ss;
+        boost::property_tree::write_json(ss, pt);
+        mSendBuffer.resize(ss.str().size()+1);
+        strcpy(mSendBuffer.data(),ss.str().c_str());
+        mSocket.send_to(boost::asio::buffer(mSendBuffer.data(), strlen(mSendBuffer.data())-1), mSenderEndpoint);
+
+//        mSocket.async_send_to(
+//                   boost::asio::buffer(mSendBuffer.data(), strlen(mSendBuffer.data())-1), mServerEndpoint,
+//                   [this](boost::system::error_code ec, std::size_t bytes_sent)
+//                   {
+//                        std::cout<<ec.message()<<":"<<bytes_sent<<std::endl;
+//                     //do_receive();
+
+//                   });
     }
 };
 #endif//ECHO_SERVER_H

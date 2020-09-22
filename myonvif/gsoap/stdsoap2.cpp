@@ -6678,7 +6678,7 @@ tcp_disconnect(struct soap *soap)
 #endif
   if (soap_valid_socket(soap->socket) && !(soap->omode & SOAP_IO_UDP))
   {
-    soap->fshutdownsocket(soap, soap->socket, SOAP_SHUT_RDWR);
+    //soap->fshutdownsocket(soap, soap->socket, SOAP_SHUT_RDWR);//zxr 使用的shutdown实现，在hi3536的ulibc环境下偶尔会阻塞5秒左右
     soap->fclosesocket(soap, soap->socket);
     soap->socket = SOAP_INVALID_SOCKET;
   }

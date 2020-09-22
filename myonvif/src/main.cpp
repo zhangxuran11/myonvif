@@ -10,18 +10,22 @@
 #define USERNAME    "admin"
 #define PASSWORD    "hidoo123"
 
-void ptzCrtlProcesser(OnvifSoap* soap, const boost::property_tree::ptree& pt){
+void ptzCrtlProcesser(EchoServer* s ,OnvifSoap* soap, const boost::property_tree::ptree& pt){
     std::stringstream ss;
     boost::property_tree::write_json(ss, pt);
-    std::cout<<ss.str()<<std::endl;
+    std::cout<<boost::posix_time::microsec_clock::local_time()<<"---"<<ss.str()<<std::endl;
 
     std::string ip = pt.get<std::string>("ip");
     std::string userName = pt.get<std::string>("userName");
     std::string pwd = pt.get<std::string>("pwd");
 
     int controlType = pt.get<int>("controlType");
+    auto t0 = boost::posix_time::microsec_clock::local_time();
     soap->continuousMove(ip.c_str(),userName.c_str(),pwd.c_str(),controlType);
+    auto t1 = boost::posix_time::microsec_clock::local_time();
+    std::cout<<"take times:"<<t1-t0<<std::endl;
 
+    s->sendResponse(pt);
 }
 int main()
 {
@@ -29,7 +33,7 @@ int main()
 
     boost::asio::io_context io_context;
     EchoServer s(io_context, 10250);
-    s.registerProcesser("ptz-crtl",std::bind(ptzCrtlProcesser,&soap,std::placeholders::_1));
+    s.registerProcesser("ptz-crtl",std::bind(ptzCrtlProcesser,&s,&soap,std::placeholders::_1));
 
     io_context.run();
 
