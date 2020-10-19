@@ -188,8 +188,8 @@ class OnvifSoap{
             #define DOWN (UP+1)
             #define LEFT     (DOWN+1)
             #define RIGHT     (LEFT+1)
-            #define ZOOMIN     (RIGHT+1)
-            #define ZOOMOUT     (ZOOMIN+1)
+            #define ZOOMOUT     (RIGHT+1)
+            #define ZOOMIN     (ZOOMOUT+1)
 
             switch (opt)
             {
@@ -209,10 +209,10 @@ class OnvifSoap{
                 continuousMove.Velocity->PanTilt->x = 0;
                 continuousMove.Velocity->PanTilt->y = -((float)speed / 10);
                 break;
-            case ZOOMOUT:
+            case ZOOMIN:
                 continuousMove.Velocity->Zoom->x = ((float)speed / 10);
                 break;
-            case ZOOMIN:
+            case ZOOMOUT:
                 continuousMove.Velocity->Zoom->x = -((float)speed / 10);
                 break;
             default:

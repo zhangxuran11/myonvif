@@ -64,6 +64,7 @@ class EchoServer{
 public:
     EchoServer(boost::asio::io_context& io_context ,uint16_t port):mSocket(io_context, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), port)),mRecvBuffer(0x10000){
         doReceive();
+
     }
     void registerProcesser(const std::string& cmd,std::function<void(const boost::property_tree::ptree&)> processer){
 

@@ -57,12 +57,12 @@ public:
         bool isBlock = mSocket.non_blocking();
         mSocket.non_blocking(true);
         int ms = 0;
-        while(sz <= 0 && ms < 3000){
+        while(sz <= 0 && ms < 2000){
             int delay_ms = 10;
             try{
                 sz = mSocket.receive_from(boost::asio::buffer(mRecvBuffer.data(), mRecvBuffer.size()-1),mServerEndpoint);
             }
-            catch (boost::exception& e){
+            catch (boost::exception& ){
                 //std::cout<<boost::diagnostic_information(e)<<std::endl;
             }
 

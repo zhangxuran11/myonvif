@@ -29,7 +29,6 @@ int main(int argc,const char* argv[])
     pt.put("controlType", controlType);
     if(argc > 4){
         seq = atoi(argv[4]);
-
     }
     pt.put("seq", seq);
     if(c.sendResqust(pt) == 0)
