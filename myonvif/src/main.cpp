@@ -5,12 +5,12 @@
 #include "EchoServer.h"
 
 
-#define SOAP_SOCK_TIMEOUT    (10)                                               // socket超时时间（单位秒）
+#define SOAP_SOCK_TIMEOUT    (1)                                               // socket超时时间（单位秒）
 
 #define USERNAME    "admin"
 #define PASSWORD    "hidoo123"
 
-void ptzCrtlProcesser(EchoServer* s ,OnvifSoap* soap, const boost::property_tree::ptree& pt){
+static boost::property_tree::ptree ptzCrtlProcesser(EchoServer* s ,OnvifSoap* soap, const boost::property_tree::ptree& pt){
     std::stringstream ss;
     boost::property_tree::write_json(ss, pt);
     std::cout<<boost::posix_time::microsec_clock::local_time()<<"---"<<ss.str()<<std::endl;
@@ -25,17 +25,18 @@ void ptzCrtlProcesser(EchoServer* s ,OnvifSoap* soap, const boost::property_tree
     auto t1 = boost::posix_time::microsec_clock::local_time();
     std::cout<<"take times:"<<t1-t0<<std::endl;
 
-    s->sendResponse(pt);
+    return boost::property_tree::ptree();
+
+//    s->sendResponse(pt);
 }
 int main()
 {
     OnvifSoap soap(SOAP_SOCK_TIMEOUT);
 
-    boost::asio::io_context io_context;
-    EchoServer s(io_context, 10250);
+    EchoServer s( 10250);
     s.registerProcesser("ptz-crtl",std::bind(ptzCrtlProcesser,&s,&soap,std::placeholders::_1));
 
-    io_context.run();
+    s.run();
 
     return 0;
 }

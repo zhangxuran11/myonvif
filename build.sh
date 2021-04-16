@@ -1,4 +1,4 @@
-if [ 0 = 1 ];then
+if [ ! -d gsoap-2.8 ];then
 unzip downloads/gsoap_2.8.106.zip
 
 sudo apt install bison flex openssl

@@ -16,13 +16,13 @@ int main(int argc,const char* argv[])
         help(argc,argv);
         return 0;
     }
-    boost::asio::io_context io_context;
-    EchoClient c(io_context,argv[1], 10250);
+    EchoClient c;
+    c.connect(argv[1],10250);
 
     std::string ip = argv[2];
     controlType = atoi(argv[3]);
     boost::property_tree::ptree pt;
-    pt.put("topic", "ptz-crtl");
+    //pt.put("topic", "ptz-crtl");
     pt.put("ip", ip);
     pt.put("userName", "admin");
     pt.put("pwd", "hidoo123");
@@ -31,7 +31,8 @@ int main(int argc,const char* argv[])
         seq = atoi(argv[4]);
     }
     pt.put("seq", seq);
-    if(c.sendResqust(pt) == 0)
-        c.waitResponse();
+    c.request("ptz-crtl",pt);
+//    if(c.sendResqust(pt) == 0)
+//        c.waitResponse();
     return 0;
 }

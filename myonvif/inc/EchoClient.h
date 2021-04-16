@@ -1,81 +1,97 @@
-#ifndef ECHOCLIENT_H
-#define ECHOCLIENT_H
-#include <string.h>
-#include <vector>
-#include <unistd.h>
+#ifndef ECHO_CLIENT_H
+#define ECHO_CLIENT_H
+#include <string>
+#include <sstream>
+#include <boost/asio.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
-#include <boost/date_time.hpp>
-#include <boost/foreach.hpp>
-
-#include <boost/exception/all.hpp>
-#include <boost/asio.hpp>
 class EchoClient{
-    boost::asio::ip::udp::socket mSocket;
-    boost::asio::ip::udp::endpoint mServerEndpoint;
-    std::vector<char> mSendBuffer;
-    std::vector<char> mRecvBuffer;
-
-public:
-    EchoClient(boost::asio::io_context& io_context ,const std::string& serverIp,uint16_t serverPort):mSocket(io_context, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 0)),mServerEndpoint(boost::asio::ip::address::from_string(serverIp) ,serverPort)
-      ,mSendBuffer(65535),mRecvBuffer(65535){
-        doReceive();
-    }
-    void doReceive()
-     {
-       mSocket.async_receive_from(
-           boost::asio::buffer(mRecvBuffer.data(), mRecvBuffer.size()-1), mServerEndpoint,
-           [this](boost::system::error_code ec, std::size_t bytes_recvd)
-           {
-             if (!ec && bytes_recvd > 0)
-             {
-
-             }
-             doReceive();
-           });
-     }
-    int sendResqust(const boost::property_tree::ptree& pt){
-        std::stringstream ss;
-        boost::property_tree::write_json(ss, pt);
-        strcpy(mSendBuffer.data(),ss.str().c_str());
-        size_t write_len = strlen(mSendBuffer.data())-1;
-        std::size_t sz = mSocket.send_to(boost::asio::buffer(mSendBuffer.data(), write_len), mServerEndpoint);
-//        mSocket.async_send_to(
-//                   boost::asio::buffer(mSendBuffer.data(), strlen(mSendBuffer.data())-1), mServerEndpoint,
-//                   [this](boost::system::error_code ec, std::size_t bytes_sent)
-//                   {
-//                        std::cout<<ec.message()<<":"<<bytes_sent<<std::endl;
-//                     //do_receive();
-
-//                   });
-        return sz == write_len ? 0 : -1;
-    }
-    boost::property_tree::ptree waitResponse(void){
-
-        boost::property_tree::ptree pt;
-        std::size_t sz = 0;
-        bool isBlock = mSocket.non_blocking();
-        mSocket.non_blocking(true);
-        int ms = 0;
-        while(sz <= 0 && ms < 2000){
-            int delay_ms = 10;
-            try{
-                sz = mSocket.receive_from(boost::asio::buffer(mRecvBuffer.data(), mRecvBuffer.size()-1),mServerEndpoint);
-            }
-            catch (boost::exception& ){
-                //std::cout<<boost::diagnostic_information(e)<<std::endl;
-            }
-
-            usleep(1000 * delay_ms);
-            ms += delay_ms;
+    public:
+        EchoClient():mSocket(mIoContext){
         }
-        mSocket.non_blocking(isBlock);
-        if(sz > 0){
-            std::stringstream ss(mRecvBuffer.data());
-            boost::property_tree::read_json(ss,pt);
+        int connect(const char* serverIp,uint16_t port){
+            boost::system::error_code ec;
+            mSocket.connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(serverIp),port),ec);
+            if( ec )
+                return -1;
+            else
+                return 0;
         }
-        return pt;
-    }
+        int connect(const char* eurekaIp,uint16_t eurekaPort,const char* serviceName){
+            mEurekaIp = eurekaIp;
+            mEurekaPort = eurekaPort;
+            mServiceName = serviceName;
+            return connect();
+        }
+        
+    
+        ~EchoClient(){
+            mSocket.close();
+        }
+        boost::property_tree::ptree request(const std::string& topic,const boost::property_tree::ptree& pt){
+            std::stringstream ss;
+            boost::property_tree::ptree root;
+            root.put("topic",topic);
+            root.put_child("content",pt);
+            boost::property_tree::json_parser::write_json(ss,root);
+            boost::system::error_code ec;
+            mSendBuffer.resize(ss.str().size()+4);
+            *reinterpret_cast<uint32_t*>(mSendBuffer.data()) = ss.str().size();
+            memcpy(mSendBuffer.data()+4,ss.str().data(),ss.str().size());
+            boost::asio::write(mSocket,boost::asio::buffer(mSendBuffer,mSendBuffer.size()),ec);
+            if(ec)
+            {
+                return boost::property_tree::ptree();
+            }
+            mRecvBuffer.resize(4);
+            boost::asio::read(mSocket,boost::asio::buffer(mRecvBuffer,mRecvBuffer.size()),ec);
+            if(ec)
+            {
+                return boost::property_tree::ptree();
+            }
+            uint32_t len = *reinterpret_cast<uint32_t*>(mRecvBuffer.data());
+            mRecvBuffer.resize(len);
+            boost::asio::read(mSocket,boost::asio::buffer(mRecvBuffer,mRecvBuffer.size()),ec);
+            if(ec)
+            {
+                return boost::property_tree::ptree();
+            }
+            ss.str("");
+            ss<<std::string(mRecvBuffer.data(),mRecvBuffer.size());
+            boost::property_tree::ptree res;
+            boost::property_tree::json_parser::read_json(ss,res);
+            return res.get_child("content");
+        }
+    private:
+        int connect(){
+            boost::system::error_code ec;
+            mSocket.connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(mEurekaIp),mEurekaPort),ec);
+            if( ec )
+                return -1;
+            boost::property_tree::ptree pt;
+            pt.put("service name",mServiceName);
+            pt = request("query service",pt);
+            if(pt.count("service address") < 1){
+                return -1;
+            }
+            std::string serviceAddr = pt.get<std::string>("service address");
+            char ip[20];
+            uint16_t port;
+            sscanf(serviceAddr.c_str(),"%s:%hu",ip,&port);
+            mSocket.connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(ip),port),ec);
+            if( ec )
+                return -1;
+            
+            return 0;
+        }
+    private:
+        std::string mEurekaIp;
+        uint16_t mEurekaPort;
+        std::string mServiceName;
+        boost::asio::io_context mIoContext;
+        boost::asio::ip::tcp::socket mSocket;
+        std::vector<char> mRecvBuffer;
+        std::vector<char> mSendBuffer;
 
 };
-#endif // ECHOCLIENT_H
+#endif//ECHO_CLIENT_H
